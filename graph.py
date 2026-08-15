@@ -23,6 +23,10 @@ driver = GraphDatabase.driver(
 )
 
 
+# =====================================================
+# TEST CONNECTION
+# =====================================================
+
 def test_connection():
 
     with driver.session() as session:
@@ -51,6 +55,7 @@ def create_entity(name, entity_type):
     }
 
     if entity_type not in allowed_types:
+
         raise ValueError(
             f"Invalid entity type: {entity_type}"
         )
@@ -72,7 +77,11 @@ def create_entity(name, entity_type):
 # RELATIONSHIP
 # =====================================================
 
-def create_relationship(source, relationship_type, target):
+def create_relationship(
+    source,
+    relationship_type,
+    target
+):
 
     allowed_relationships = {
         "KNOWS",
@@ -82,8 +91,10 @@ def create_relationship(source, relationship_type, target):
     }
 
     if relationship_type not in allowed_relationships:
+
         raise ValueError(
-            f"Invalid relationship type: {relationship_type}"
+            f"Invalid relationship type: "
+            f"{relationship_type}"
         )
 
     relationship_queries = {
@@ -113,7 +124,9 @@ def create_relationship(source, relationship_type, target):
         """
     }
 
-    query = relationship_queries[relationship_type]
+    query = relationship_queries[
+        relationship_type
+    ]
 
     with driver.session() as session:
 
@@ -145,15 +158,21 @@ def store_graph(graph_data):
             relationship.target
         )
 
+
+# =====================================================
+# GRAPH RETRIEVAL
+# =====================================================
+
 def get_user_graph_context(user_name):
 
     query = """
     MATCH (u:User {name: $user_name})-[r]->(n)
+
     RETURN
         u.name AS user,
         type(r) AS relationship,
-        labels(n) AS labels,
-        n.name AS entity
+        n.name AS entity,
+        labels(n) AS labels
     """
 
     with driver.session() as session:
