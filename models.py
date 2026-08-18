@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-
+#defines the schema of my Knowledge Graph & ensures that the LLM output has the expected entity and relationship structure
 class Entity(BaseModel):
     name: str
     type: str

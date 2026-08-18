@@ -15,15 +15,14 @@ client = Groq(
 )
 
 
-# =====================================================
+# raw text leta hai
 # GRAPH EXTRACTION
-# =====================================================
 
 def extract_graph_data(text: str) -> GraphData:
 
     response = client.chat.completions.create(
 
-        model="llama-3.3-70b-versatile",
+        model = "openai/gpt-oss-20b",
 
         messages=[
             {
@@ -96,14 +95,14 @@ Return JSON only.
     print("\nRAW LLM OUTPUT:")
     print(raw_output)
 
+    #json ko python object me convert
     data = json.loads(raw_output)
-
+    #Pydantic validation
     return GraphData(**data)
 
 
-# =====================================================
 # GRAPH RAG - ANSWER GENERATION
-# =====================================================
+
 
 def generate_answer(
     question: str,
@@ -141,7 +140,7 @@ Instructions:
 
     response = client.chat.completions.create(
 
-        model="llama-3.3-70b-versatile",
+        model = "openai/gpt-oss-20b",
 
         messages=[
 

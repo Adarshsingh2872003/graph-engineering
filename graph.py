@@ -16,16 +16,16 @@ print("URI:", URI)
 print("USERNAME:", USERNAME)
 print("PASSWORD loaded:", bool(PASSWORD))
 
-
+#Neo4j database ke saath connection create
 driver = GraphDatabase.driver(
     URI,
     auth=(USERNAME, PASSWORD)
 )
 
 
-# =====================================================
+
 # TEST CONNECTION
-# =====================================================
+
 
 def test_connection():
 
@@ -40,9 +40,9 @@ def test_connection():
         print(record["message"])
 
 
-# =====================================================
+
 # ENTITY
-# =====================================================
+# node creation
 
 def create_entity(name, entity_type):
 
@@ -73,9 +73,8 @@ def create_entity(name, entity_type):
         )
 
 
-# =====================================================
 # RELATIONSHIP
-# =====================================================
+# edge creation
 
 def create_relationship(
     source,
@@ -137,9 +136,9 @@ def create_relationship(
         )
 
 
-# =====================================================
+
 # STORE GRAPH
-# =====================================================
+
 
 def store_graph(graph_data):
 
@@ -159,9 +158,9 @@ def store_graph(graph_data):
         )
 
 
-# =====================================================
+
 # GRAPH RETRIEVAL
-# =====================================================
+
 
 def get_user_graph_context(user_name):
 
@@ -198,9 +197,9 @@ def get_user_graph_context(user_name):
     return "\n".join(context)
 
 
-# =====================================================
+
 # TEST
-# =====================================================
+
 
 if __name__ == "__main__":
 
