@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 
 from llm import extract_graph_data, generate_answer
-from graph import store_graph, get_user_graph_context
+from graph import store_graph, get_user_graph_context, driver
 from fastapi.middleware.cors import CORSMiddleware
 
 
