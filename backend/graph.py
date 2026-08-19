@@ -4,205 +4,367 @@ from dotenv import load_dotenv
 from neo4j import GraphDatabase
 
 
+# =========================================
+# ENVIRONMENT
+# =========================================
+
 load_dotenv()
 
+NEO4J_URI = os.getenv("NEO4J_URI")
+NEO4J_USERNAME = os.getenv("NEO4J_USERNAME")
+NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD")
 
-URI = os.getenv("NEO4J_URI")
-USERNAME = os.getenv("NEO4J_USERNAME")
-PASSWORD = os.getenv("NEO4J_PASSWORD")
+
+if not NEO4J_URI:
+    raise ValueError("NEO4J_URI missing")
+
+if not NEO4J_USERNAME:
+    raise ValueError("NEO4J_USERNAME missing")
+
+if not NEO4J_PASSWORD:
+    raise ValueError("NEO4J_PASSWORD missing")
 
 
-print("URI:", URI)
-print("USERNAME:", USERNAME)
-print("PASSWORD loaded:", bool(PASSWORD))
+# =========================================
+# DRIVER
+# =========================================
 
-#Neo4j database ke saath connection create
 driver = GraphDatabase.driver(
-    URI,
-    auth=(USERNAME, PASSWORD)
+
+    NEO4J_URI,
+
+    auth=(
+        NEO4J_USERNAME,
+        NEO4J_PASSWORD
+    )
 )
 
 
-
-# TEST CONNECTION
-
+# =========================================
+# CONNECTION TEST
+# =========================================
 
 def test_connection():
 
     with driver.session() as session:
 
-        result = session.run(
-            "RETURN 'Neo4j Connected!' AS message"
-        )
+        session.run(
+            "RETURN 1"
+        ).consume()
 
-        record = result.single()
-
-        print(record["message"])
+    print("Neo4j Connected!")
 
 
+# =========================================
+# CLEAR OLD GRAPH
+# =========================================
 
-# ENTITY
-# node creation
-
-def create_entity(name, entity_type):
-
-    allowed_types = {
-        "User",
-        "Skill",
-        "Company",
-        "Topic",
-        "Technology"
-    }
-
-    if entity_type not in allowed_types:
-
-        raise ValueError(
-            f"Invalid entity type: {entity_type}"
-        )
-
-    query = f"""
-    MERGE (e:Entity {{name: $name}})
-    SET e:{entity_type}
-    """
+def clear_graph():
 
     with driver.session() as session:
 
         session.run(
-            query,
-            name=name
-        )
+            """
+            MATCH (n)
+            DETACH DELETE n
+            """
+        ).consume()
+
+    print("Old graph deleted.")
 
 
-# RELATIONSHIP
-# edge creation
-
-def create_relationship(
-    source,
-    relationship_type,
-    target
-):
-
-    allowed_relationships = {
-        "KNOWS",
-        "WORKS_AT",
-        "LEARNING",
-        "USES"
-    }
-
-    if relationship_type not in allowed_relationships:
-
-        raise ValueError(
-            f"Invalid relationship type: "
-            f"{relationship_type}"
-        )
-
-    relationship_queries = {
-
-        "KNOWS": """
-        MATCH (source:Entity {name: $source})
-        MATCH (target:Entity {name: $target})
-        MERGE (source)-[:KNOWS]->(target)
-        """,
-
-        "WORKS_AT": """
-        MATCH (source:Entity {name: $source})
-        MATCH (target:Entity {name: $target})
-        MERGE (source)-[:WORKS_AT]->(target)
-        """,
-
-        "LEARNING": """
-        MATCH (source:Entity {name: $source})
-        MATCH (target:Entity {name: $target})
-        MERGE (source)-[:LEARNING]->(target)
-        """,
-
-        "USES": """
-        MATCH (source:Entity {name: $source})
-        MATCH (target:Entity {name: $target})
-        MERGE (source)-[:USES]->(target)
-        """
-    }
-
-    query = relationship_queries[
-        relationship_type
-    ]
-
-    with driver.session() as session:
-
-        session.run(
-            query,
-            source=source,
-            target=target
-        )
-
-
-
+# =========================================
 # STORE GRAPH
-
+# =========================================
 
 def store_graph(graph_data):
 
-    for entity in graph_data.entities:
+    allowed_relationships = {
 
-        create_entity(
-            entity.name,
-            entity.type
-        )
-
-    for relationship in graph_data.relationships:
-
-        create_relationship(
-            relationship.source,
-            relationship.type,
-            relationship.target
-        )
-
-
-
-# GRAPH RETRIEVAL
-
-
-def get_user_graph_context(user_name):
-
-    query = """
-    MATCH (u:User {name: $user_name})-[r]->(n)
-
-    RETURN
-        u.name AS user,
-        type(r) AS relationship,
-        n.name AS entity,
-        labels(n) AS labels
-    """
+        "KNOWS",
+        "WORKS_AT",
+        "STUDIED_AT",
+        "BUILT",
+        "HAS_SKILL",
+        "USES",
+        "WORKED_AS",
+        "LEARNING",
+        "HAS_EDUCATION",
+        "HAS_EXPERIENCE",
+        "HAS_CERTIFICATION"
+    }
 
     with driver.session() as session:
 
+        # =====================================
+        # ENTITIES
+        # =====================================
+
+        for entity in graph_data.entities:
+
+            session.run(
+
+                """
+                MERGE (e:Entity {
+                    name: $name
+                })
+
+                SET e.type = $type
+                """,
+
+                name=entity.name.strip(),
+
+                type=entity.type.strip()
+            ).consume()
+
+        # =====================================
+        # RELATIONSHIPS
+        # =====================================
+
+        for relationship in graph_data.relationships:
+
+            relationship_type = (
+                relationship.type
+                .upper()
+                .strip()
+            )
+
+            if relationship_type not in allowed_relationships:
+
+                print(
+                    "Skipping relationship:",
+                    relationship_type
+                )
+
+                continue
+
+            query = f"""
+            MATCH (source:Entity {{
+                name: $source
+            }})
+
+            MATCH (target:Entity {{
+                name: $target
+            }})
+
+            MERGE (
+                source
+            )-[:{relationship_type}]->
+            (
+                target
+            )
+            """
+
+            session.run(
+
+                query,
+
+                source=relationship.source.strip(),
+
+                target=relationship.target.strip()
+            ).consume()
+
+    print(
+        "Knowledge Graph stored successfully!"
+    )
+
+
+# =========================================
+# GET COMPLETE USER CONTEXT
+# =========================================
+
+def get_user_graph_context(
+    user_name="Adarsh"
+):
+
+    user_name = user_name.strip()
+
+    print("\n=========================================")
+    print("GRAPH SEARCH")
+    print("=========================================")
+
+    print(
+        "Searching for:",
+        user_name
+    )
+
+    with driver.session() as session:
+
+        # =====================================
+        # FIND USER
+        # =====================================
+
         result = session.run(
-            query,
-            user_name=user_name
+
+            """
+            MATCH (u:Entity)
+
+            WHERE
+                u.type = 'User'
+                AND (
+                    toLower(u.name) = toLower($name)
+                    OR
+                    toLower(u.name) CONTAINS
+                    toLower($name)
+                    OR
+                    toLower($name) CONTAINS
+                    toLower(u.name)
+                )
+
+            RETURN
+                u.name AS name,
+                u.type AS type
+
+            LIMIT 1
+            """,
+
+            name=user_name
         )
+
+        user = result.single()
+
+        if not user:
+
+            print(
+                "USER NOT FOUND:",
+                user_name
+            )
+
+            return ""
+
+        actual_name = user["name"]
+
+        print(
+            "USER FOUND:",
+            actual_name
+        )
+
+        # =====================================
+        # GET ALL CONNECTIONS
+        # =====================================
+
+        result = session.run(
+
+            """
+            MATCH (u:Entity {
+                name: $name
+            })
+
+            OPTIONAL MATCH path =
+                (u)-[*1..3]->(target:Entity)
+
+            WHERE target <> u
+
+            RETURN
+                nodes(path) AS nodes,
+                relationships(path) AS relationships
+            """,
+
+            name=actual_name
+        )
+
+        # -------------------------------------------------
+        # IMPORTANT:
+        # Iterate the raw Result directly instead of calling
+        # result.data(). .data() converts Neo4j Relationship
+        # objects into plain tuples (start, type, end), which
+        # do NOT have a .type attribute. Iterating the Result
+        # keeps nodes/relationships as native Neo4j graph
+        # objects (Node / Relationship) so `.type` and `.get()`
+        # work correctly below.
+        # -------------------------------------------------
 
         records = list(result)
 
-    context = []
-
-    for record in records:
-
-        context.append(
-            f"{record['user']} "
-            f"--{record['relationship']}--> "
-            f"{record['entity']} "
-            f"({', '.join(record['labels'])})"
+        print(
+            "Graph paths found:",
+            len(records)
         )
 
-    return "\n".join(context)
+        context_lines = []
+
+        # =====================================
+        # BUILD CONTEXT
+        # =====================================
+
+        for record in records:
+
+            nodes = record["nodes"]
+            relationships = record["relationships"]
+
+            if not nodes:
+                continue
+
+            for i, relationship in enumerate(
+                relationships
+            ):
+
+                source = nodes[i]
+                target = nodes[i + 1]
+
+                source_name = source.get(
+                    "name"
+                )
+
+                source_type = source.get(
+                    "type"
+                )
+
+                target_name = target.get(
+                    "name"
+                )
+
+                target_type = target.get(
+                    "type"
+                )
+
+                relationship_type = (
+                    relationship.type
+                )
+
+                line = (
+                    f"{source_name} "
+                    f"({source_type}) "
+                    f"--{relationship_type}--> "
+                    f"{target_name} "
+                    f"({target_type})"
+                )
+
+                context_lines.append(line)
+
+        # =====================================
+        # REMOVE DUPLICATES
+        # =====================================
+
+        context_lines = list(
+            dict.fromkeys(
+                context_lines
+            )
+        )
+
+        context = "\n".join(
+            context_lines
+        )
+
+        print(
+            "\nCONTEXT RECORDS:",
+            len(context_lines)
+        )
+
+        print("\nFINAL CONTEXT:")
+        print(context)
+
+        print(
+            "========================================="
+        )
+
+        return context
 
 
+# =========================================
+# CLOSE
+# =========================================
 
-# TEST
-
-
-if __name__ == "__main__":
-
-    test_connection()
+def close_driver():
 
     driver.close()

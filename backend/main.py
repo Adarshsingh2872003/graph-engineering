@@ -8,18 +8,33 @@ from graph import (
     get_user_graph_context,
     driver
 )
+from pypdf import PdfReader
+
+def extract_text_from_pdf(pdf_path):
+    reader = PdfReader(pdf_path)
+
+    text = ""
+
+    for page in reader.pages:
+        page_text = page.extract_text()
+
+        if page_text:
+            text += page_text + "\n"
+
+    return text
 
 
 
 # USER DATA
 
 
-text = """
-My name is Adarsh.
-I know Python and JavaScript.
-I am learning Graph Engineering.
-I work at ABC Technologies.
-"""
+text = extract_text_from_pdf("my_resume.pdf")
+
+print("\n==============================")
+print("RESUME TEXT")
+print("==============================")
+
+print(text)
 
 
 
@@ -72,7 +87,7 @@ print("STEP 3: GRAPH RETRIEVAL")
 print("==============================")
 
 
-user_name = "Adarsh"
+user_name = "Adarsh Singh"
 
 
 graph_context = get_user_graph_context(
