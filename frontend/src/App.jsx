@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import "./App.css";
 
 // App.jsx mein
-const API_URL = "http://127.0.0.1:8000";;
+  const API_URL = "https://graph-engineering-api.onrender.com";
 
 function App() {
   const [question, setQuestion] = useState("");
